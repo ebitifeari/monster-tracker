@@ -60,6 +60,24 @@
         .password-input {
             margin-top: 20px;
         }
+
+            /* Spinner Styling */
+    .spinner {
+        display: none; /* Hidden by default */
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        border-top: 4px solid #4CAF50;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
     </style>
 </head>
 <body>
@@ -71,6 +89,10 @@
         </div>
         <div id="month-year"></div>
         <div id="calendar"></div>
+        
+        <!-- Spinner Element -->
+        <div id="spinner" class="spinner"></div>
+    
         <div class="password-input">
             <input type="password" id="password" placeholder="Enter password" />
             <button id="confirm-password">Confirm Password</button>
@@ -153,8 +175,10 @@
             .then(response => console.log("Data logged to Google Sheets"))
             .catch(error => console.error("Error:", error));
         }
-
         function fetchDataFromGoogleSheet() {
+    const spinner = document.getElementById("spinner");
+    spinner.style.display = "block";  // Show spinner
+
     fetch(sheetURL, {
         method: 'GET',
         mode: 'cors',
@@ -165,7 +189,10 @@
         console.log("Fetched Data:", data);
         populateCalendar(data);
     })
-    .catch(error => console.error("Error fetching data:", error));
+    .catch(error => console.error("Error fetching data:", error))
+    .finally(() => {
+        spinner.style.display = "none";  // Hide spinner after data is fetched
+    });
 }
 
         function populateCalendar(data) {

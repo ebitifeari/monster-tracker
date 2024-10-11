@@ -155,14 +155,18 @@
         }
 
         function fetchDataFromGoogleSheet() {
-            fetch(sheetURL)
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Fetched Data:", data);
-                    populateCalendar(data);
-                })
-                .catch(error => console.error("Error fetching data:", error));
-        }
+    fetch(sheetURL, {
+        method: 'GET',
+        mode: 'cors',
+        redirect: 'follow'
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Fetched Data:", data);
+        populateCalendar(data);
+    })
+    .catch(error => console.error("Error fetching data:", error));
+}
 
         function populateCalendar(data) {
             const days = document.querySelectorAll(".day");

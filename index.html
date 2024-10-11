@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monster Drink Tracker</title>
+
+    <!-- CSS Styling -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            text-align: center;
+        }
+
+        #calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+
+        .day {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fff;
+            border: 2px solid #ccc;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .day.drunk {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .day:hover {
+            background-color: #ddd;
+        }
+
+        #month-year {
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .navigation {
+            margin-bottom: 20px;
+        }
+
+        .password-input {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Monster Drink Tracker</h1>
+        <div class="navigation">
+            <button id="prev-month">Previous Month</button>
+            <button id="next-month">Next Month</button>
+        </div>
+        <div id="month-year"></div>
+        <div id="calendar"></div>
+        <div class="password-input">
+            <input type="password" id="password" placeholder="Enter password" />
+            <button id="confirm-password">Confirm Password</button>
+        </div>
+    </div>
+
+    <!-- GitHub integration, password logic, and calendar logic -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        // Zaszyfrowane hasło za pomocą SHA-256
+        const hashedPassword = "b79a6a52d8ba15c692a3d9a47b20b0f91cea2574e9d32a39e244231d8918be99";  // Hash dla "nflphonk"
+        
+        // GitHub repository details
+        const owner = 'ebitifeari';   // Replace with your GitHub username
+        const repo = 'monster-tracker ';          // Replace with your repo name
+        const filePath = 'data.csv';         // Path to the CSV file in your repo
+        const apiBaseUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+
+        
+        // Current date information
+        let today = new Date();
+        let currentYear = today.getFullYear();
+        let currentMonth = today.getMonth();
+
+        // Pobieranie liczby dni w danym miesiącu
+        function getDaysInMonth(year, month) {
+            return new Date(year, month + 1, 0).getDate();
+        }
+
+        // Tworzenie kalendarza dla danego miesiąca
+        function createCalendar(year, month) {
+            const calendar = document.getElementById("calendar");
+            const monthYearDisplay = document.getElementById("month-year");
+            calendar.innerHTML = ''; // Czyszczenie kalendarza
+
+            const daysInMonth = getDaysInMonth(year, month);
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            
+            monthYearDisplay.innerText = `${monthNames[month]} ${year}`;
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const day = document.createElement("div");
+                day.classList.add("day");
+                day.innerText = i.toString();
+                day.addEventListener("click", () => toggleDrunkStatus(day, i));
+                calendar.appendChild(day);
+            }
+
+            // Fetch tracking data from GitHub
+            fetchTrackingData(year, month);
+        }
+
+        // Przełączanie statusu picia Monsterka
+        function toggleDrunkStatus(dayElement, day) {
+            const userPassword = document.getElementById("password").value;
+            if (validatePassword(userPassword)) {
+                dayElement.classList.toggle("drunk");
+                saveDrunkStatus(currentYear, currentMonth, day, dayElement.classList.contains("drunk"));
+            } else {
+                alert("Incorrect password!");
+            }
+        }
+
+        // Sprawdzanie hasła
+        function validatePassword(userInput) {
+            const hashedInput = CryptoJS.SHA256(userInput).toString();
+            return hashedInput === hashedPassword;
+        }
+
+        // Zapis statusu picia Monsterka na GitHub
+        async function saveDrunkStatus(year, month, day, isDrunk) {
+            const csvData = `${year},${month + 1},${day},${isDrunk ? 'Drunk' : 'Not drunk'}\n`;
+            const encodedData = btoa(csvData);
+
+            const response = await fetch(apiBaseUrl, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `Updated status for day ${day}`,
+                    content: encodedData,
+                    sha: await getFileSha()
+                })
+            });
+
+            if (response.ok) {
+                console.log(`Status for day ${day} saved successfully!`);
+            } else {
+                console.error('Failed to save status on GitHub:', response.statusText);
+            }
+        }
+
+        // Pobieranie sha pliku
+        async function getFileSha() {
+            const response = await fetch(apiBaseUrl, {
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`
+                }
+            });
+            const data = await response.json();
+            return data.sha;
+        }
+
+        // Pobieranie danych o piciach z GitHub
+        async function fetchTrackingData(year, month) {
+            const response = await fetch(apiBaseUrl, {
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const csvContent = atob(data.content);
+                const rows = csvContent.split('\n');
+                
+                rows.forEach(row => {
+                    const [csvYear, csvMonth, csvDay, status] = row.split(',');
+                    if (parseInt(csvYear) === year && parseInt(csvMonth) === month + 1) {
+                        const dayElement = document.querySelectorAll('.day')[csvDay - 1];
+                        if (status === 'Drunk') {
+                            dayElement.classList.add('drunk');
+                        }
+                    }
+                });
+            } else {
+                console.error('Failed to fetch data from GitHub:', response.statusText);
+            }
+        }
+
+        // Zmiana miesiąca
+        document.getElementById('prev-month').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            createCalendar(currentYear, currentMonth);
+        });
+
+        document.getElementById('next-month').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            createCalendar(currentYear, currentMonth);
+        });
+
+        // Uruchamianie funkcji tworzenia kalendarza
+        createCalendar(currentYear, currentMonth);
+    </script>
+</body>
+</html>
